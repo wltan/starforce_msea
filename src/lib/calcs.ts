@@ -1,5 +1,5 @@
 import type { Config } from "./types";
-import { MAX_STARS } from "./types";
+import { MAX_STARS, Event } from "./types";
 
 // Per official KMS site.
 const STARCATCH_MULTI = 1.05;
@@ -38,23 +38,23 @@ const PROBABILITIES: { [star: number]: [number, number] } = {
   29: [0.01, 0.2],
 };
 
-// Starforce cost KMST.
+// MSEA costs
 const COST: { [star: number]: (level: number) => number } = {
-  0: (level) => 100 * Math.round(10 + (level ** 3 * 1) / 2500),
-  1: (level) => 100 * Math.round(10 + (level ** 3 * 2) / 2500),
-  2: (level) => 100 * Math.round(10 + (level ** 3 * 3) / 2500),
-  3: (level) => 100 * Math.round(10 + (level ** 3 * 4) / 2500),
-  4: (level) => 100 * Math.round(10 + (level ** 3 * 5) / 2500),
-  5: (level) => 100 * Math.round(10 + (level ** 3 * 6) / 2500),
-  6: (level) => 100 * Math.round(10 + (level ** 3 * 7) / 2500),
-  7: (level) => 100 * Math.round(10 + (level ** 3 * 8) / 2500),
-  8: (level) => 100 * Math.round(10 + (level ** 3 * 9) / 2500),
-  9: (level) => 100 * Math.round(10 + (level ** 3 * 10) / 2500),
-  10: (level) => 100 * Math.round(10 + (level ** 3 * 11 ** 2.7) / 40000),
-  11: (level) => 100 * Math.round(10 + (level ** 3 * 12 ** 2.7) / 22000),
-  12: (level) => 100 * Math.round(10 + (level ** 3 * 13 ** 2.7) / 15000),
-  13: (level) => 100 * Math.round(10 + (level ** 3 * 14 ** 2.7) / 11000),
-  14: (level) => 100 * Math.round(10 + (level ** 3 * 15 ** 2.7) / 7500),
+  0: (level) => 100 * Math.round(10 + (level ** 3 * 1) / 3600),
+  1: (level) => 100 * Math.round(10 + (level ** 3 * 2) / 3600),
+  2: (level) => 100 * Math.round(10 + (level ** 3 * 3) / 3600),
+  3: (level) => 100 * Math.round(10 + (level ** 3 * 4) / 3600),
+  4: (level) => 100 * Math.round(10 + (level ** 3 * 5) / 3600),
+  5: (level) => 100 * Math.round(10 + (level ** 3 * 6) / 3600),
+  6: (level) => 100 * Math.round(10 + (level ** 3 * 7) / 3600),
+  7: (level) => 100 * Math.round(10 + (level ** 3 * 8) / 3600),
+  8: (level) => 100 * Math.round(10 + (level ** 3 * 9) / 3600),
+  9: (level) => 100 * Math.round(10 + (level ** 3 * 10) / 3600),
+  10: (level) => 100 * Math.round(10 + (level ** 3 * 11 ** 2.7) / 57100),
+  11: (level) => 100 * Math.round(10 + (level ** 3 * 12 ** 2.7) / 31400),
+  12: (level) => 100 * Math.round(10 + (level ** 3 * 13 ** 2.7) / 21400),
+  13: (level) => 100 * Math.round(10 + (level ** 3 * 14 ** 2.7) / 15700),
+  14: (level) => 100 * Math.round(10 + (level ** 3 * 15 ** 2.7) / 10700),
   15: (level) => 100 * Math.round(10 + (level ** 3 * 16 ** 2.7) / 20000),
   16: (level) => 100 * Math.round(10 + (level ** 3 * 17 ** 2.7) / 20000),
   17: (level) => 100 * Math.round(10 + (level ** 3 * 18 ** 2.7) / 15000),
@@ -73,8 +73,7 @@ const COST: { [star: number]: (level: number) => number } = {
 };
 
 export const DEFAULT_VALUES = {
-  event_thirty_off: false,
-  event_destruction: false,
+  event: null,
   starcatch: [],
   mvp_discount: 0,
 };
@@ -92,59 +91,71 @@ export const DEFAULT_VALUES = {
 };
 
 const cost_and_odds = (config: Config, star: number) => {
-  let c = COST[star](config.item_level) * (config.event_thirty_off ? 0.7 : 1);
+  const base_cost = COST[star](config.item_level);
+  const is_safeguard_active = config.safeguard && star >= 15 && star < 18;
+
+  let click_cost = base_cost;
+  if (config.event === Event.THIRTY_OFF_PRICE || config.event === Event.GUARDIAN) {
+    click_cost *= 0.7;
+  }
   if (star < 17) {
-    c *= 1 - config.mvp_discount;
+    click_cost *= 1 - config.mvp_discount;
+  }
+  if (is_safeguard_active) {
+    click_cost += 2 * base_cost; // safeguard not subject to discounts
   }
 
-  const [success_chance, boom_chance_given_no_success] = PROBABILITIES[star];
-  let s = success_chance * (config.starcatch.includes(star) ? STARCATCH_MULTI : 1);
-  let d: number;
-  if (config.safeguard && star >= 15 && star < 18) {
-    c += 2 * COST[star](config.item_level);
-    d = 0;
-  } else {
-    d = (1 - s) * boom_chance_given_no_success;
+  const [base_success_chance, boom_chance_given_no_success] = PROBABILITIES[star];
+  const success_chance =
+    base_success_chance * (config.starcatch.includes(star) ? STARCATCH_MULTI : 1);
+
+  let boom_chance = is_safeguard_active ? 0 : (1 - success_chance) * boom_chance_given_no_success;
+  switch (config.event) {
+    case Event.THIRTY_OFF_PRICE:
+      break;
+    case Event.THIRTY_OFF_BOOM:
+      if (star <= 21) {
+        boom_chance *= 0.7;
+      }
+      break;
+    case Event.GUARDIAN:
+      if (star <= 21) {
+        boom_chance *= 0.6;
+      } else if (star <= 24) {
+        boom_chance *= 0.8;
+      }
+      break;
   }
 
-  if (config.event_destruction && star <= 21) {
-    d *= 0.7;
-  }
-
-  return [c, s, d];
+  return [click_cost, success_chance, boom_chance];
 };
 
 const expected_cost_to_next = (config: Config, star: number, prior_costs: number[]) => {
   const [c, s, d] = cost_and_odds(config, star);
 
-  let F = 0;
+  let cost_to_restore_to_current = 0;
   for (let i = 12; i < star; i++) {
-    F += prior_costs[i];
+    cost_to_restore_to_current += prior_costs[i];
   }
 
-  return (c + d * (F + config.replacement_cost)) / s;
+  return (c + d * (config.replacement_cost + cost_to_restore_to_current)) / s;
 };
 
 const expected_booms_to_next = (config: Config, star: number, prior_booms: number[]) => {
   const [_c, s, d] = cost_and_odds(config, star);
 
-  let F = 0;
+  let cost_to_restore_to_current = 0;
   for (let i = 12; i < star; i++) {
-    F += prior_booms[i];
+    cost_to_restore_to_current += prior_booms[i];
   }
 
-  return (d * (1 + F)) / s;
+  return (d * (1 + cost_to_restore_to_current)) / s;
 };
 
-const prob_success_to_next = (config: Config, star: number, prior_prob_success: number[]) => {
-  // Intuitively, the value we want to compute is:
-  //     sum P(success from current star) * P(return to current star without booming) ^ n
-  //     n = 0 to infinity
-  // Because this is a geometric sum that always converges with the values we have, we easily have a
-  // closed form of:
-  //     P(success from current star) / (1 - P(return to current star without booming))
+const prob_success_to_next = (config: Config, star: number) => {
   const [_c, s, d] = cost_and_odds(config, star);
-
+  // Fail without destruction does not matter here, as we will click until either success or destruction.
+  // Therefore, this is simply P(success | success or destruction).
   return s / (s + d);
 };
 
@@ -161,7 +172,7 @@ export const expected_from_config = (config: Config): Result => {
   for (let i = 0; i < MAX_STARS; i++) {
     cost_to_next_star[i] = expected_cost_to_next(config, i, cost_to_next_star);
     booms_to_next_star[i] = expected_booms_to_next(config, i, booms_to_next_star);
-    prob_success_to_next_star[i] = prob_success_to_next(config, i, prob_success_to_next_star);
+    prob_success_to_next_star[i] = prob_success_to_next(config, i);
   }
 
   let cost = 0;

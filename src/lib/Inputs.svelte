@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Config } from "./types";
-  import { MAX_STARS } from "./types";
+  import { MAX_STARS, Event } from "./types";
 
   export let config: Config;
 
@@ -117,20 +117,30 @@
   <legend><span>Events</span></legend>
 
   <div class="inputs">
-    <label class="button" class:checked={config.event_thirty_off}>
-      <input type="checkbox" bind:checked={config.event_thirty_off} />
+    <label class="button" class:checked={config.event === null}>
+      <input type="radio" bind:group={config.event} value={null} />
+      <span>None</span>
+    </label>
+
+    <label class="button" class:checked={config.event === Event.THIRTY_OFF_PRICE}>
+      <input type="radio" bind:group={config.event} value={Event.THIRTY_OFF_PRICE} />
       <span>30% off</span>
     </label>
 
-    <label class="button" class:checked={config.event_destruction}>
-      <input type="checkbox" bind:checked={config.event_destruction} />
+    <label class="button" class:checked={config.event === Event.THIRTY_OFF_BOOM}>
+      <input type="radio" bind:group={config.event} value={Event.THIRTY_OFF_BOOM} />
       <span>-30% boom ≤21</span>
+    </label>
+
+    <label class="button" class:checked={config.event === Event.GUARDIAN}>
+      <input type="radio" bind:group={config.event} value={Event.GUARDIAN} />
+      <span>guardian</span>
     </label>
   </div>
 </fieldset>
 
 <fieldset>
-  <legend><span>MVP Discount</span></legend>
+  <legend><span>VIP Discount</span></legend>
 
   <div class="inputs">
     <label class="button" class:checked={config.mvp_discount === 0}>
@@ -140,17 +150,17 @@
 
     <label class="button" class:checked={config.mvp_discount === 0.03}>
       <input type="radio" bind:group={config.mvp_discount} value={0.03} />
-      <span>Silver</span>
+      <span>Gold</span>
     </label>
 
     <label class="button" class:checked={config.mvp_discount === 0.05}>
       <input type="radio" bind:group={config.mvp_discount} value={0.05} />
-      <span>Gold</span>
+      <span>Diamond</span>
     </label>
 
     <label class="button" class:checked={config.mvp_discount === 0.1}>
       <input type="radio" bind:group={config.mvp_discount} value={0.1} />
-      <span>Diamond+</span>
+      <span>Royal+</span>
     </label>
   </div>
 </fieldset>
