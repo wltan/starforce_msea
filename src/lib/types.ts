@@ -1,13 +1,18 @@
 export const MAX_STARS: number = 30;
 
+export enum Event {
+  THIRTY_OFF_PRICE,
+  THIRTY_OFF_BOOM,
+  GUARDIAN,
+}
+
 export type Config = {
   item_level: number;
   item_from_star: number;
   item_to_star: number;
   replacement_cost: number;
   safeguard: boolean;
-  event_thirty_off: boolean;
-  event_destruction: boolean;
+  event: Event | null;
   mvp_discount: number;
   starcatch: number[];
 };
@@ -18,8 +23,7 @@ export const DEFAULT_CONFIG: Config = {
   item_to_star: 17,
   replacement_cost: 0,
   safeguard: false,
-  event_thirty_off: false,
-  event_destruction: false,
+  event: null,
   mvp_discount: 0,
   starcatch: [],
 };

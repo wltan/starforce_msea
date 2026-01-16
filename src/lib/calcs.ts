@@ -1,5 +1,5 @@
 import type { Config } from "./types";
-import { MAX_STARS } from "./types";
+import { MAX_STARS, Event } from "./types";
 
 // Per official KMS site.
 const STARCATCH_MULTI = 1.05;
@@ -73,8 +73,7 @@ const COST: { [star: number]: (level: number) => number } = {
 };
 
 export const DEFAULT_VALUES = {
-  event_thirty_off: false,
-  event_destruction: false,
+  event: null,
   starcatch: [],
   mvp_discount: 0,
 };
@@ -92,59 +91,71 @@ export const DEFAULT_VALUES = {
 };
 
 const cost_and_odds = (config: Config, star: number) => {
-  let c = COST[star](config.item_level) * (config.event_thirty_off ? 0.7 : 1);
+  const base_cost = COST[star](config.item_level);
+  const is_safeguard_active = config.safeguard && star >= 15 && star < 18;
+
+  let click_cost = base_cost;
+  if (config.event === Event.THIRTY_OFF_PRICE || config.event === Event.GUARDIAN) {
+    click_cost *= 0.7;
+  }
   if (star < 17) {
-    c *= 1 - config.mvp_discount;
+    click_cost *= 1 - config.mvp_discount;
+  }
+  if (is_safeguard_active) {
+    click_cost += 2 * base_cost; // safeguard not subject to discounts
   }
 
-  const [success_chance, boom_chance_given_no_success] = PROBABILITIES[star];
-  let s = success_chance * (config.starcatch.includes(star) ? STARCATCH_MULTI : 1);
-  let d: number;
-  if (config.safeguard && star >= 15 && star < 18) {
-    c += 2 * COST[star](config.item_level);
-    d = 0;
-  } else {
-    d = (1 - s) * boom_chance_given_no_success;
+  const [base_success_chance, boom_chance_given_no_success] = PROBABILITIES[star];
+  const success_chance =
+    base_success_chance * (config.starcatch.includes(star) ? STARCATCH_MULTI : 1);
+
+  let boom_chance = is_safeguard_active ? 0 : (1 - success_chance) * boom_chance_given_no_success;
+  switch (config.event) {
+    case Event.THIRTY_OFF_PRICE:
+      break;
+    case Event.THIRTY_OFF_BOOM:
+      if (star <= 21) {
+        boom_chance *= 0.7;
+      }
+      break;
+    case Event.GUARDIAN:
+      if (star <= 21) {
+        boom_chance *= 0.6;
+      } else if (star <= 24) {
+        boom_chance *= 0.8;
+      }
+      break;
   }
 
-  if (config.event_destruction && star <= 21) {
-    d *= 0.7;
-  }
-
-  return [c, s, d];
+  return [click_cost, success_chance, boom_chance];
 };
 
 const expected_cost_to_next = (config: Config, star: number, prior_costs: number[]) => {
   const [c, s, d] = cost_and_odds(config, star);
 
-  let F = 0;
+  let cost_to_restore_to_current = 0;
   for (let i = 12; i < star; i++) {
-    F += prior_costs[i];
+    cost_to_restore_to_current += prior_costs[i];
   }
 
-  return (c + d * (F + config.replacement_cost)) / s;
+  return (c + d * (config.replacement_cost + cost_to_restore_to_current)) / s;
 };
 
 const expected_booms_to_next = (config: Config, star: number, prior_booms: number[]) => {
   const [_c, s, d] = cost_and_odds(config, star);
 
-  let F = 0;
+  let cost_to_restore_to_current = 0;
   for (let i = 12; i < star; i++) {
-    F += prior_booms[i];
+    cost_to_restore_to_current += prior_booms[i];
   }
 
-  return (d * (1 + F)) / s;
+  return (d * (1 + cost_to_restore_to_current)) / s;
 };
 
-const prob_success_to_next = (config: Config, star: number, prior_prob_success: number[]) => {
-  // Intuitively, the value we want to compute is:
-  //     sum P(success from current star) * P(return to current star without booming) ^ n
-  //     n = 0 to infinity
-  // Because this is a geometric sum that always converges with the values we have, we easily have a
-  // closed form of:
-  //     P(success from current star) / (1 - P(return to current star without booming))
+const prob_success_to_next = (config: Config, star: number) => {
   const [_c, s, d] = cost_and_odds(config, star);
-
+  // Fail without destruction does not matter here, as we will click until either success or destruction.
+  // Therefore, this is simply P(success | success or destruction).
   return s / (s + d);
 };
 
@@ -161,7 +172,7 @@ export const expected_from_config = (config: Config): Result => {
   for (let i = 0; i < MAX_STARS; i++) {
     cost_to_next_star[i] = expected_cost_to_next(config, i, cost_to_next_star);
     booms_to_next_star[i] = expected_booms_to_next(config, i, booms_to_next_star);
-    prob_success_to_next_star[i] = prob_success_to_next(config, i, prob_success_to_next_star);
+    prob_success_to_next_star[i] = prob_success_to_next(config, i);
   }
 
   let cost = 0;
