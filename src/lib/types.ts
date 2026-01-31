@@ -19,6 +19,8 @@ export type Config = {
   starcatch: number[];
 };
 
+export const DEFAULT_STARCATCH_ALL = Array.from({ length: 29 - 12 + 1 }, (_, i) => i + 12);
+
 export const DEFAULT_CONFIG: Config = {
   item_level: 150,
   item_from_star: 12,
@@ -27,7 +29,7 @@ export const DEFAULT_CONFIG: Config = {
   safeguard: false,
   event: null,
   mvp_discount: 0,
-  starcatch: [],
+  starcatch: DEFAULT_STARCATCH_ALL,
 };
 
 export const make_config = (obj: any): Config => {
