@@ -19,7 +19,7 @@ export type Config = {
   starcatch: number[];
 };
 
-export const DEFAULT_STARCATCH_ALL = Array.from({ length: 29 - 12 + 1 }, (_, i) => i + 12);
+export const DEFAULT_STARCATCH_ALL: number[] = Array.from({ length: 30 }, (_, i) => i);
 
 export const DEFAULT_CONFIG: Config = {
   item_level: 150,
