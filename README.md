@@ -12,6 +12,7 @@ This fork is tailored to MapleSEA Star Force systems.
 - Implement Shining Star Force event (30% off + -30% boom ≤21), since only one event selection is allowed
 - Implement 1+1 event
 - Make all starcatch the default option
+- Make starcatch begin from 0 instead of 12
 
 ### 2026-01-16
 

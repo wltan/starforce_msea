@@ -43,7 +43,7 @@
   const starcatch_drag_commit = () => {
     if (drag_start != null && drag_end != null && drag_start !== drag_end) {
       let new_starcatch = [];
-      for (let i = 10; i < MAX_STARS; i++) {
+      for (let i = 0; i < MAX_STARS; i++) {
         if (between(drag_start, drag_end, i)) {
           if (starcatch_enabling(drag_start)) {
             new_starcatch.push(i);
@@ -182,18 +182,18 @@
   </legend>
 
   <div class="inputs">
-    {#each { length: MAX_STARS - 12 } as _, star}
+    {#each { length: MAX_STARS } as _, star}
       <label
         class="button draggable"
-        class:checked={config.starcatch.includes(star + 12)}
+        class:checked={config.starcatch.includes(star)}
         class:disabling={!starcatch_enabling(drag_start)}
-        class:active={between(drag_start, drag_end, star + 12)}
-        on:pointerdown={starcatch_drag_start(star + 12)}
-        on:pointerenter={starcatch_drag_continue(star + 12)}
+        class:active={between(drag_start, drag_end, star)}
+        on:pointerdown={starcatch_drag_start(star)}
+        on:pointerenter={starcatch_drag_continue(star)}
       >
-        <input type="checkbox" bind:group={config.starcatch} value={star + 12} />
+        <input type="checkbox" bind:group={config.starcatch} value={star} />
         <span>
-          {star + 12}
+          {star}
         </span>
       </label>
     {/each}
