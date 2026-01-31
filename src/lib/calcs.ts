@@ -74,7 +74,7 @@ const COST: { [star: number]: (level: number) => number } = {
 
 const cost_and_odds = (config: Config, star: number) => {
   const base_cost = COST[star](config.item_level);
-  const is_safeguard_active = config.safeguard && star >= 15 && star < 18;
+  const is_safeguard_active = config.safeguard.find((s) => s === star) !== undefined;
 
   let click_cost = base_cost;
   if (

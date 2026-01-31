@@ -12,9 +12,6 @@
     }
   };
 
-  let drag_start: number | null = null;
-  let drag_end: number | null = null;
-
   const between = (a: number | null, b: number | null, x: number) => {
     if (a === x || b === x) {
       return true;
@@ -26,26 +23,33 @@
     let [start, end] = a < b ? [a, b] : [b, a];
     return x >= start && x <= end;
   };
+
+  let starcatch_drag_start_index: number | null = null;
+  let starcatch_drag_end_index: number | null = null;
   const starcatch_enabling = (star: number) => !config.starcatch.includes(star);
   const starcatch_drag_start = (star: number) => (e: PointerEvent) => {
-    drag_start = star;
+    starcatch_drag_start_index = star;
     const target = e.target as HTMLElement;
     target.releasePointerCapture(e.pointerId);
   };
   const starcatch_drag_continue = (star: number) => () => {
-    if (drag_start != null) {
-      drag_end = star;
+    if (starcatch_drag_start_index != null) {
+      starcatch_drag_end_index = star;
     }
   };
   const starcatch_drag_cancel = () => {
-    drag_end = null;
+    starcatch_drag_end_index = null;
   };
   const starcatch_drag_commit = () => {
-    if (drag_start != null && drag_end != null && drag_start !== drag_end) {
+    if (
+      starcatch_drag_start_index != null &&
+      starcatch_drag_end_index != null &&
+      starcatch_drag_start_index !== starcatch_drag_end_index
+    ) {
       let new_starcatch = [];
       for (let i = 0; i < MAX_STARS; i++) {
-        if (between(drag_start, drag_end, i)) {
-          if (starcatch_enabling(drag_start)) {
+        if (between(starcatch_drag_start_index, starcatch_drag_end_index, i)) {
+          if (starcatch_enabling(starcatch_drag_start_index)) {
             new_starcatch.push(i);
           }
         } else if (config.starcatch.includes(i)) {
@@ -54,7 +58,45 @@
       }
       config.starcatch = new_starcatch;
     }
-    drag_start = drag_end = null;
+    starcatch_drag_start_index = starcatch_drag_end_index = null;
+  };
+
+  let safeguard_drag_start_index: number | null = null;
+  let safeguard_drag_end_index: number | null = null;
+  const safeguard_values = [15, 16, 17];
+  const safeguard_enabling = (star: number) => !config.safeguard.includes(star);
+  const safeguard_drag_start = (star: number) => (e: PointerEvent) => {
+    safeguard_drag_start_index = star;
+    const target = e.target as HTMLElement;
+    target.releasePointerCapture(e.pointerId);
+  };
+  const safeguard_drag_continue = (star: number) => () => {
+    if (safeguard_drag_start_index != null) {
+      safeguard_drag_end_index = star;
+    }
+  };
+  const safeguard_drag_cancel = () => {
+    safeguard_drag_end_index = null;
+  };
+  const safeguard_drag_commit = () => {
+    if (
+      safeguard_drag_start_index != null &&
+      safeguard_drag_end_index != null &&
+      safeguard_drag_start_index !== safeguard_drag_end_index
+    ) {
+      let new_safeguard = [];
+      for (let val of safeguard_values) {
+        if (between(safeguard_drag_start_index, safeguard_drag_end_index, val)) {
+          if (safeguard_enabling(safeguard_drag_start_index)) {
+            new_safeguard.push(val);
+          }
+        } else if (config.safeguard.includes(val)) {
+          new_safeguard.push(val);
+        }
+      }
+      config.safeguard = new_safeguard;
+    }
+    safeguard_drag_start_index = safeguard_drag_end_index = null;
   };
 </script>
 
@@ -104,11 +146,6 @@
         on:beforeinput={reject_non_numeric}
         bind:value={config.replacement_cost}
       />
-    </label>
-
-    <label class="button" class:checked={config.safeguard}>
-      <input type="checkbox" bind:checked={config.safeguard} />
-      <span>Safeguard</span>
     </label>
   </div>
 </fieldset>
@@ -175,6 +212,31 @@
   </div>
 </fieldset>
 
+<fieldset on:pointerleave={safeguard_drag_cancel}>
+  <legend>
+    <span>Safeguard</span>
+    <span class="help">(click and drag)</span>
+  </legend>
+
+  <div class="inputs">
+    {#each safeguard_values as star}
+      <label
+        class="button draggable"
+        class:checked={config.safeguard.includes(star)}
+        class:disabling={!safeguard_enabling(safeguard_drag_start_index)}
+        class:active={between(safeguard_drag_start_index, safeguard_drag_end_index, star)}
+        on:pointerdown={safeguard_drag_start(star)}
+        on:pointerenter={safeguard_drag_continue(star)}
+      >
+        <input type="checkbox" bind:group={config.safeguard} value={star} />
+        <span>
+          {star}
+        </span>
+      </label>
+    {/each}
+  </div>
+</fieldset>
+
 <fieldset on:pointerleave={starcatch_drag_cancel}>
   <legend>
     <span>Starcatch</span>
@@ -186,8 +248,8 @@
       <label
         class="button draggable"
         class:checked={config.starcatch.includes(star)}
-        class:disabling={!starcatch_enabling(drag_start)}
-        class:active={between(drag_start, drag_end, star)}
+        class:disabling={!starcatch_enabling(starcatch_drag_start_index)}
+        class:active={between(starcatch_drag_start_index, starcatch_drag_end_index, star)}
         on:pointerdown={starcatch_drag_start(star)}
         on:pointerenter={starcatch_drag_continue(star)}
       >
@@ -200,7 +262,7 @@
   </div>
 </fieldset>
 
-<svelte:window on:pointerup={starcatch_drag_commit} />
+<svelte:window on:pointerup={starcatch_drag_commit} on:pointerup={safeguard_drag_commit} />
 
 <style lang="postcss">
   @tailwind utilities;

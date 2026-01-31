@@ -13,7 +13,7 @@ export type Config = {
   item_from_star: number;
   item_to_star: number;
   replacement_cost: number;
-  safeguard: boolean;
+  safeguard: number[];
   event: Event | null;
   mvp_discount: number;
   starcatch: number[];
@@ -26,7 +26,7 @@ export const DEFAULT_CONFIG: Config = {
   item_from_star: 12,
   item_to_star: 17,
   replacement_cost: 0,
-  safeguard: false,
+  safeguard: [17],
   event: null,
   mvp_discount: 0,
   starcatch: DEFAULT_STARCATCH_ALL,
