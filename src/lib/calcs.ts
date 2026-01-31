@@ -1,5 +1,5 @@
 import type { Config } from "./types";
-import { MAX_STARS, Event } from "./types";
+import { MAX_STARS, Event, DEFAULT_STARCATCH_ALL } from "./types";
 
 // Per official KMS site.
 const STARCATCH_MULTI = 1.05;
@@ -70,24 +70,6 @@ const COST: { [star: number]: (level: number) => number } = {
   27: (level) => 100 * Math.round(10 + (level ** 3 * 28 ** 2.7) / 20000),
   28: (level) => 100 * Math.round(10 + (level ** 3 * 29 ** 2.7) / 20000),
   29: (level) => 100 * Math.round(10 + (level ** 3 * 30 ** 2.7) / 20000),
-};
-
-export const DEFAULT_VALUES = {
-  event: null,
-  starcatch: [],
-  mvp_discount: 0,
-};
-
-// Compile error if we add new fields to `Config` and forget to add them to `DEFAULT_VALUES` above.
-(): Config => {
-  return {
-    item_level: 150,
-    item_from_star: 12,
-    item_to_star: 17,
-    replacement_cost: 0,
-    safeguard: false,
-    ...DEFAULT_VALUES,
-  };
 };
 
 const cost_and_odds = (config: Config, star: number) => {
