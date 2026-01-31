@@ -13,6 +13,7 @@ This fork is tailored to MapleSEA Star Force systems.
 - Implement 1+1 event
 - Make all starcatch the default option
 - Make starcatch begin from 0 instead of 12
+- Decouple safeguard so it can be independently selected between 15-17
 
 ### 2026-01-16
 
