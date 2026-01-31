@@ -122,6 +122,11 @@
       <span>None</span>
     </label>
 
+    <label class="button" class:checked={config.event === Event.ONE_PLUS_ONE}>
+      <input type="radio" bind:group={config.event} value={Event.ONE_PLUS_ONE} />
+      <span>1+1</span>
+    </label>
+
     <label class="button" class:checked={config.event === Event.THIRTY_OFF_PRICE}>
       <input type="radio" bind:group={config.event} value={Event.THIRTY_OFF_PRICE} />
       <span>30% off</span>
@@ -130,6 +135,11 @@
     <label class="button" class:checked={config.event === Event.THIRTY_OFF_BOOM}>
       <input type="radio" bind:group={config.event} value={Event.THIRTY_OFF_BOOM} />
       <span>-30% boom ≤21</span>
+    </label>
+
+    <label class="button" class:checked={config.event === Event.SHINING}>
+      <input type="radio" bind:group={config.event} value={Event.SHINING} />
+      <span>shining</span>
     </label>
 
     <label class="button" class:checked={config.event === Event.GUARDIAN}>

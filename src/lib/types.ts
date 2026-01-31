@@ -3,6 +3,8 @@ export const MAX_STARS: number = 30;
 export enum Event {
   THIRTY_OFF_PRICE,
   THIRTY_OFF_BOOM,
+  ONE_PLUS_ONE,
+  SHINING,
   GUARDIAN,
 }
 

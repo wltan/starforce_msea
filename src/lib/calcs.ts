@@ -95,7 +95,11 @@ const cost_and_odds = (config: Config, star: number) => {
   const is_safeguard_active = config.safeguard && star >= 15 && star < 18;
 
   let click_cost = base_cost;
-  if (config.event === Event.THIRTY_OFF_PRICE || config.event === Event.GUARDIAN) {
+  if (
+    config.event === Event.THIRTY_OFF_PRICE ||
+    config.event === Event.GUARDIAN ||
+    config.event === Event.SHINING
+  ) {
     click_cost *= 0.7;
   }
   if (star < 17) {
@@ -114,6 +118,7 @@ const cost_and_odds = (config: Config, star: number) => {
     case Event.THIRTY_OFF_PRICE:
       break;
     case Event.THIRTY_OFF_BOOM:
+    case Event.SHINING: // also -30% boom
       if (star <= 21) {
         boom_chance *= 0.7;
       }
@@ -182,6 +187,10 @@ export const expected_from_config = (config: Config): Result => {
     cost += cost_to_next_star[i];
     booms += booms_to_next_star[i];
     prob_success *= prob_success_to_next_star[i];
+
+    if (config.event === Event.ONE_PLUS_ONE && i < 10) {
+      i++;
+    }
   }
 
   return { cost, booms, prob_success };
