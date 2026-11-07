@@ -1,4 +1,10 @@
+allowBuilds:
+  '@astryxdesign/core': true
+  '@parcel/watcher': true
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@astryxdesign/core@0.7.10'
+  - '@astryxdesign/theme-neutral@0.7.10'
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
-  - svelte-preprocess

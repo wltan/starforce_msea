@@ -3,6 +3,19 @@
 This is a fork of [acyr0/starforce_kms](https://github.com/acyr0/starforce_kms),
 an analytical starforce calculator for post-Savior starforce costs.
 
+The UI uses React and the Astryx design system. To run it locally:
+
+```sh
+pnpm install
+pnpm dev
+```
+
+Run `pnpm check` and `pnpm build` to validate the app.
+
+Pushes to `main` are built and published to the `gh-pages` branch by GitHub
+Actions. In the repository's Pages settings, select **Deploy from a branch**,
+then choose `gh-pages` and the root (`/`) folder.
+
 # Key Changes
 
 This fork is tailored to MapleSEA Star Force systems.
