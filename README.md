@@ -20,6 +20,13 @@ then choose `gh-pages` and the root (`/`) folder.
 
 This fork is tailored to MapleSEA Star Force systems.
 
+### 2026-11-25
+
+- Add level presets
+- Add trace restoration system
+- Standardize rounding logic to round up to 3 significant figures throughout
+- Improve clear logic on replacement cost input
+
 ### 2026-11-07
 
 - Remove star catch - it is now applied automatically

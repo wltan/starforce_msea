@@ -1,5 +1,5 @@
 import type { Config } from "./types";
-import { MAX_STARS, Event } from "./types";
+import { DEFAULT_CONFIG, MAX_STARS, Event, make_config, max_stars_for_level } from "./types";
 
 // Per official KMS site.
 const STARCATCH_MULTI = 1.05;
@@ -116,23 +116,41 @@ const cost_and_odds = (config: Config, star: number) => {
   return [click_cost, success_chance, boom_chance];
 };
 
+const get_restoration_option = (config: Config, star: number) => {
+  const isRestorationSelected =
+    config.restoration_stars_by_level[config.item_level]?.includes(star) ?? false;
+  if (!isRestorationSelected) return undefined;
+
+  const estimate = estimate_trace_restoration(config, star);
+  if (!estimate) return undefined;
+
+  return {
+    cost: estimate.cost + config.replacement_cost * estimate.spares,
+    spares: estimate.spares,
+  };
+};
+
 const expected_cost_to_next = (config: Config, star: number, prior_costs: number[]) => {
   const [c, s, d] = cost_and_odds(config, star);
+  const restoration = get_restoration_option(config, star);
 
   let cost_to_restore_to_current = 0;
   for (let i = 12; i < star; i++) {
     cost_to_restore_to_current += prior_costs[i];
   }
 
-  return (c + d * (config.replacement_cost + cost_to_restore_to_current)) / s;
+  const recovery_cost = restoration?.cost ?? config.replacement_cost + cost_to_restore_to_current;
+  return (c + d * recovery_cost) / s;
 };
 
-const expected_booms_to_next = (config: Config, star: number, prior_booms: number[]) => {
+const expected_spares_to_next = (config: Config, star: number, prior_spares: number[]) => {
   const [_c, s, d] = cost_and_odds(config, star);
+  const restoration = get_restoration_option(config, star);
+  if (restoration) return (d * restoration.spares) / s;
 
   let cost_to_restore_to_current = 0;
   for (let i = 12; i < star; i++) {
-    cost_to_restore_to_current += prior_booms[i];
+    cost_to_restore_to_current += prior_spares[i];
   }
 
   return (d * (1 + cost_to_restore_to_current)) / s;
@@ -147,26 +165,26 @@ const prob_success_to_next = (config: Config, star: number) => {
 
 export type Result = {
   cost: number;
-  booms: number;
+  spares: number;
   prob_success: number;
 };
 
 export const expected_from_config = (config: Config): Result => {
   let cost_to_next_star: number[] = [];
-  let booms_to_next_star: number[] = [];
+  let spares_to_next_star: number[] = [];
   let prob_success_to_next_star: number[] = [];
   for (let i = 0; i < MAX_STARS; i++) {
     cost_to_next_star[i] = expected_cost_to_next(config, i, cost_to_next_star);
-    booms_to_next_star[i] = expected_booms_to_next(config, i, booms_to_next_star);
+    spares_to_next_star[i] = expected_spares_to_next(config, i, spares_to_next_star);
     prob_success_to_next_star[i] = prob_success_to_next(config, i);
   }
 
   let cost = 0;
-  let booms = 0;
+  let spares = 0;
   let prob_success = 1;
   for (let i = config.item_from_star; i < config.item_to_star; i++) {
     cost += cost_to_next_star[i];
-    booms += booms_to_next_star[i];
+    spares += spares_to_next_star[i];
     prob_success *= prob_success_to_next_star[i];
 
     if (config.event === Event.ONE_PLUS_ONE && i < 10) {
@@ -174,5 +192,52 @@ export const expected_from_config = (config: Config): Result => {
     }
   }
 
-  return { cost, booms, prob_success };
+  return { cost, spares, prob_success };
+};
+
+export const round_up_significant_figures = (value: number, digits: number): number => {
+  if (value <= 0) return value;
+  const magnitude = 10 ** (Math.floor(Math.log10(value)) - digits + 1);
+  return Math.ceil(value / magnitude) * magnitude;
+};
+
+export type TraceRestorationEstimate = {
+  cost: number;
+  spares: number;
+};
+
+export const estimate_trace_restoration = (
+  config: Config,
+  star: number,
+): TraceRestorationEstimate | undefined => {
+  const level = config.item_level;
+  if (
+    !Number.isInteger(level) ||
+    level < 128 ||
+    level > 250 ||
+    !Number.isInteger(star) ||
+    star < 15 ||
+    star > 22 ||
+    star > max_stars_for_level(level)
+  ) {
+    return undefined;
+  }
+
+  const estimateConfig = make_config({
+    ...DEFAULT_CONFIG,
+    item_level: level,
+    item_from_star: 12,
+    item_to_star: star,
+    replacement_cost: 0,
+    safeguard: [15, 16, 17],
+    event: Event.SHINING,
+    mvp_discount: 0,
+  });
+  const estimate = expected_from_config(estimateConfig);
+
+  return {
+    cost: round_up_significant_figures(estimate.cost * (config.restoration_discount ? 0.8 : 1), 3),
+    // Include the starting item, then round the expected destroyed items up to whole copies.
+    spares: Math.ceil(1 + estimate.spares),
+  };
 };

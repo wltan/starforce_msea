@@ -26,6 +26,8 @@ export type Config = {
   safeguard: number[];
   event: Event | null;
   mvp_discount: number;
+  restoration_stars_by_level: Record<number, number[]>;
+  restoration_discount: boolean;
 };
 
 export const DEFAULT_CONFIG: Config = {
@@ -37,7 +39,11 @@ export const DEFAULT_CONFIG: Config = {
   safeguard: [],
   event: null,
   mvp_discount: 0,
+  restoration_stars_by_level: {},
+  restoration_discount: false,
 };
+
+const RESTORATION_STARS = new Set([15, 16, 17, 18, 19, 20, 21, 22]);
 
 const VALID_EVENTS = new Set<number>([
   Event.THIRTY_OFF_PRICE,
@@ -61,6 +67,23 @@ export const make_config = (obj: Record<string, unknown>): Config => {
       : Array.isArray(obj.safeguard)
         ? obj.safeguard
         : [obj.safeguard];
+  const rawRestorationSelections = obj.restoration_stars_by_level;
+  const restorationSelections: Record<number, number[]> = {};
+  if (rawRestorationSelections && typeof rawRestorationSelections === "object") {
+    for (const [levelKey, rawStars] of Object.entries(rawRestorationSelections)) {
+      const level = Number(levelKey);
+      if (!Number.isInteger(level) || level < 128 || level > 250) continue;
+      const stars = Array.isArray(rawStars) ? rawStars : [rawStars];
+      const selectedStars = [
+        ...new Set(
+          stars
+            .map((value) => parseNumber(value, NaN))
+            .filter((star) => RESTORATION_STARS.has(star)),
+        ),
+      ].sort((a, b) => a - b);
+      if (selectedStars.length > 0) restorationSelections[level] = selectedStars;
+    }
+  }
 
   const config: Config = {
     item_level: Math.min(
@@ -81,6 +104,8 @@ export const make_config = (obj: Record<string, unknown>): Config => {
     mvp_discount: [0, 0.03, 0.05, 0.1].includes(Number(obj.mvp_discount))
       ? Number(obj.mvp_discount)
       : DEFAULT_CONFIG.mvp_discount,
+    restoration_stars_by_level: restorationSelections,
+    restoration_discount: obj.restoration_discount === true || obj.restoration_discount === "true",
   };
 
   const maxStars = max_stars_for_level(config.item_level);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ButtonGroup } from "@astryxdesign/core/ButtonGroup";
+import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { Heading } from "@astryxdesign/core/Heading";
 import { NumberInput } from "@astryxdesign/core/NumberInput";
 import { Slider } from "@astryxdesign/core/Slider";
@@ -8,11 +9,16 @@ import { Theme } from "@astryxdesign/core/theme";
 import { neutralTheme } from "@astryxdesign/theme-neutral/built";
 import type { CSSProperties } from "react";
 import qs from "qs";
-import { expected_from_config } from "./lib/calcs";
+import {
+  estimate_trace_restoration,
+  expected_from_config,
+  round_up_significant_figures,
+} from "./lib/calcs";
 import type { Config } from "./lib/types";
 import { DEFAULT_CONFIG, Event, make_config, max_stars_for_level } from "./lib/types";
 
 const SAFEGUARD_VALUES = [15, 16, 17];
+const ITEM_LEVEL_PRESETS = [130, 140, 150, 160, 200, 250];
 
 const EVENT_OPTIONS = [
   { label: "None", value: null },
@@ -50,7 +56,7 @@ function serialize(config: Config): string {
   for (const [key, value] of Object.entries(options)) {
     if (
       !["item_level", "item_from_star", "item_to_star"].includes(key) &&
-      DEFAULT_CONFIG[key as keyof Config] === value
+      JSON.stringify(DEFAULT_CONFIG[key as keyof Config]) === JSON.stringify(value)
     ) {
       delete options[key as keyof typeof options];
     }
@@ -74,14 +80,111 @@ function roundTo(value: number, precision: number): number {
 
 function displayCost(value: number): string {
   if (Number.isNaN(value)) return "";
-  const formatter = Intl.NumberFormat();
-  if (value < 1_000_000_000) return `${formatter.format(roundTo(value / 1e6, 2))}m`;
-  if (value < 1_000_000_000_000) return `${formatter.format(roundTo(value / 1e9, 2))}b`;
-  return `${formatter.format(roundTo(value / 1e12, 2))}t`;
+  if (value <= 0) return "0m";
+  const roundedValue = round_up_significant_figures(value, 3);
+  const divisor = roundedValue < 1_000_000_000 ? 1e6 : roundedValue < 1e12 ? 1e9 : 1e12;
+  const suffix = divisor === 1e6 ? "m" : divisor === 1e9 ? "b" : "t";
+  const valueInUnit = roundedValue / divisor;
+  const fractionDigits = Math.max(0, 2 - Math.floor(Math.log10(valueInUnit)));
+  const formatter = Intl.NumberFormat(undefined, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
+  return `${formatter.format(valueInUnit)}${suffix}`;
+}
+
+function displayRestorationCost(value: number): string {
+  return displayCost(value);
 }
 
 function displayRounded(value: number): number | "" {
   return Number.isNaN(value) ? "" : roundTo(value, 2);
+}
+
+function RestorationTable({
+  config,
+  onToggleStar,
+  onDiscountChange,
+}: {
+  config: Config;
+  onToggleStar: (star: number) => void;
+  onDiscountChange: (hasDiscount: boolean) => void;
+}) {
+  const { item_level: itemLevel, restoration_discount: hasDiscount } = config;
+  const selectedStars = config.restoration_stars_by_level[itemLevel] ?? [];
+  const restorationRows = useMemo(() => {
+    const maxStar = Math.min(22, max_stars_for_level(itemLevel));
+    const rows = [];
+    for (let star = 15; star <= maxStar; star++) {
+      const estimate = estimate_trace_restoration(config, star);
+      if (estimate) rows.push({ star, ...estimate });
+    }
+    return rows;
+  }, [config, itemLevel]);
+
+  if (itemLevel < 128 || itemLevel > 250) return null;
+
+  return (
+    <section className="restoration-panel" aria-labelledby="restoration-heading">
+      <div className="restoration-heading">
+        <div className="restoration-heading-row">
+          <div>
+            <p className="eyebrow">Restoration</p>
+            <h2 id="restoration-heading">Trace restoration</h2>
+          </div>
+          <CheckboxInput
+            className="restoration-discount-toggle"
+            label="20% off"
+            size="sm"
+            value={hasDiscount}
+            onChange={onDiscountChange}
+          />
+        </div>
+        <p>Select a row to apply that restoration after a boom.</p>
+      </div>
+      <div className="restoration-table-scroll">
+        <table className="results-table restoration-table">
+          <thead>
+            <tr>
+              <th scope="col">Restoration star</th>
+              <th scope="col">Equipment copies</th>
+              <th scope="col">Required mesos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {restorationRows.map(({ star, spares, cost }) => {
+              const isSelected = selectedStars.includes(star);
+              return (
+                <tr
+                  key={star}
+                  className={isSelected ? "restoration-row-selected" : undefined}
+                  aria-selected={isSelected}
+                  onClick={() => onToggleStar(star)}
+                >
+                  <th scope="row">
+                    <button
+                      type="button"
+                      className="restoration-row-toggle"
+                      aria-label={`${isSelected ? "Remove" : "Select"} ${star}-star restoration at level ${itemLevel}`}
+                      aria-pressed={isSelected}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleStar(star);
+                      }}
+                    >
+                      {star}★
+                    </button>
+                  </th>
+                  <td>{spares}</td>
+                  <td>{displayRestorationCost(cost)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 function NumericField({
@@ -237,6 +340,21 @@ function AppContent() {
   const updateConfig = useCallback((update: Partial<Config>) => {
     setConfig((current) => make_config({ ...current, ...update }));
   }, []);
+  const toggleRestorationStar = useCallback((star: number) => {
+    setConfig((current) => {
+      if (current.item_level < 128 || current.item_level > 250) return current;
+
+      const itemLevel = current.item_level;
+      const selectedStars = current.restoration_stars_by_level[itemLevel] ?? [];
+      const nextStars = selectedStars.includes(star)
+        ? selectedStars.filter((selectedStar) => selectedStar !== star)
+        : [...selectedStars, star];
+      const restoration_stars_by_level = { ...current.restoration_stars_by_level };
+      if (nextStars.length > 0) restoration_stars_by_level[itemLevel] = nextStars;
+      else delete restoration_stars_by_level[itemLevel];
+      return make_config({ ...current, restoration_stars_by_level });
+    });
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => setConfig(loadConfig());
@@ -301,7 +419,8 @@ function AppContent() {
             Starforce <span>Calculator (MSEA)</span>
           </Heading>
           <p className="app-subtitle">
-            Estimate the mesos, success chance, and booms needed to reach your target star.
+            Estimate the mesos, success chance, and spare equipment needed to reach your target
+            star.
           </p>
         </div>
         <p className="app-header-note">
@@ -310,148 +429,178 @@ function AppContent() {
       </header>
 
       <div className="calculator-layout">
-        <section className="calculator-panel" aria-label="Starforce settings">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Configuration</p>
-              <h2>Upgrade details</h2>
-            </div>
-            <span className="star-range">
-              {config.item_from_star}★ <span aria-hidden="true">→</span> {config.item_to_star}★
-            </span>
-          </div>
-
-          <div className="numeric-grid">
-            <NumericField
-              label="Item level"
-              value={config.item_level}
-              min={10}
-              max={250}
-              step={10}
-              onChange={(item_level) => updateConfig({ item_level })}
-            />
-            <div className="replacement-cost-field">
-              <NumberInput
-                label="Replacement cost"
-                value={
-                  config.replacement_cost /
-                  (config.replacement_cost_unit === "B" ? 1_000_000_000 : 1_000_000)
-                }
-                min={0}
-                step={1}
-                onChange={(value) =>
-                  updateConfig({
-                    replacement_cost:
-                      value * (config.replacement_cost_unit === "B" ? 1_000_000_000 : 1_000_000),
-                  })
-                }
-              />
-              <ToggleButtonGroup
-                className="replacement-cost-units"
-                label="Replacement cost unit"
-                size="sm"
-                value={config.replacement_cost_unit}
-                onChange={(unit) => {
-                  if (unit !== "B" && unit !== "M") return;
-                  const currentMultiplier =
-                    config.replacement_cost_unit === "B" ? 1_000_000_000 : 1_000_000;
-                  const nextMultiplier = unit === "B" ? 1_000_000_000 : 1_000_000;
-                  updateConfig({
-                    replacement_cost:
-                      (config.replacement_cost / currentMultiplier) * nextMultiplier,
-                    replacement_cost_unit: unit,
-                  });
-                }}
-              >
-                <ToggleButton label="Billions" value="B" size="sm">
-                  B
-                </ToggleButton>
-                <ToggleButton label="Millions" value="M" size="sm">
-                  M
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </div>
-          </div>
-          <StarRange
-            start={config.item_from_star}
-            target={config.item_to_star}
-            maxTarget={max_stars_for_level(config.item_level)}
-            onChange={(item_from_star, item_to_star) =>
-              updateConfig({ item_from_star, item_to_star })
-            }
-          />
-          <div className="settings-grid">
-            <ChoiceGroup
-              label="Event"
-              options={EVENT_OPTIONS}
-              value={config.event}
-              onChange={(event) => updateConfig({ event })}
-            />
-            <ChoiceGroup
-              label="MVP discount"
-              subtitle="Applies to 16★ and below"
-              options={DISCOUNT_OPTIONS}
-              value={config.mvp_discount}
-              onChange={(mvp_discount) => updateConfig({ mvp_discount })}
-            />
-            <section className="option-section safeguard-section" aria-label="Safeguard">
-              <div className="section-title">
-                <h2>Safeguard</h2>
-                <span className="section-title-separator" aria-hidden="true">
-                  ·
-                </span>
-                <span>Click or drag to select</span>
+        <div className="configuration-column">
+          <section className="calculator-panel" aria-label="Starforce settings">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">Configuration</p>
+                <h2>Upgrade details</h2>
               </div>
-              <ButtonGroup className="choice-list" label="Safeguard stars" size="sm">
-                {SAFEGUARD_VALUES.map((star) => {
-                  const checked = config.safeguard.includes(star);
-                  return (
+              <span className="star-range">
+                {config.item_from_star}★ <span aria-hidden="true">→</span> {config.item_to_star}★
+              </span>
+            </div>
+
+            <div className="numeric-grid">
+              <div className="item-level-field">
+                <NumericField
+                  label="Item level"
+                  value={config.item_level}
+                  min={10}
+                  max={250}
+                  step={10}
+                  onChange={(item_level) => updateConfig({ item_level })}
+                />
+                <ButtonGroup className="item-level-presets" label="Item level presets" size="sm">
+                  {ITEM_LEVEL_PRESETS.map((level) => (
                     <ToggleButton
-                      key={star}
-                      className="choice-button safeguard-button"
-                      label={`${star} stars`}
+                      key={level}
+                      className="choice-button item-level-preset"
+                      label={`${level} item level`}
                       size="sm"
-                      isPressed={checked}
+                      isPressed={config.item_level === level}
                       onPressedChange={(isPressed) => {
-                        const safeguard = isPressed
-                          ? [...config.safeguard, star]
-                          : config.safeguard.filter((value) => value !== star);
-                        updateConfig({ safeguard });
-                      }}
-                      onClick={(event) => {
-                        if (dragCommitted.current) {
-                          dragCommitted.current = false;
-                          event.preventDefault();
-                        }
-                      }}
-                      onPointerDown={(event) => {
-                        if (event.button === 0) {
-                          dragStart.current = star;
-                          dragEnd.current = null;
-                        }
-                      }}
-                      onPointerEnter={() => {
-                        if (dragStart.current !== null) dragEnd.current = star;
-                      }}
-                      onPointerCancel={() => {
-                        dragStart.current = null;
-                        dragEnd.current = null;
+                        if (isPressed) updateConfig({ item_level: level });
                       }}
                     >
-                      {star}
+                      {level}
                     </ToggleButton>
-                  );
-                })}
-              </ButtonGroup>
-            </section>
-          </div>
-        </section>
+                  ))}
+                </ButtonGroup>
+              </div>
+              <div className="replacement-cost-field">
+                <NumberInput
+                  label="Replacement cost"
+                  value={
+                    config.replacement_cost /
+                    (config.replacement_cost_unit === "B" ? 1_000_000_000 : 1_000_000)
+                  }
+                  hasClear
+                  min={0}
+                  step={1}
+                  onChange={(value) =>
+                    updateConfig({
+                      replacement_cost:
+                        value === null
+                          ? DEFAULT_CONFIG.replacement_cost
+                          : value *
+                            (config.replacement_cost_unit === "B" ? 1_000_000_000 : 1_000_000),
+                    })
+                  }
+                />
+                <ToggleButtonGroup
+                  className="replacement-cost-units"
+                  label="Replacement cost unit"
+                  size="sm"
+                  value={config.replacement_cost_unit}
+                  onChange={(unit) => {
+                    if (unit !== "B" && unit !== "M") return;
+                    const currentMultiplier =
+                      config.replacement_cost_unit === "B" ? 1_000_000_000 : 1_000_000;
+                    const nextMultiplier = unit === "B" ? 1_000_000_000 : 1_000_000;
+                    updateConfig({
+                      replacement_cost:
+                        (config.replacement_cost / currentMultiplier) * nextMultiplier,
+                      replacement_cost_unit: unit,
+                    });
+                  }}
+                >
+                  <ToggleButton label="Billions" value="B" size="sm">
+                    B
+                  </ToggleButton>
+                  <ToggleButton label="Millions" value="M" size="sm">
+                    M
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </div>
+            </div>
+            <StarRange
+              start={config.item_from_star}
+              target={config.item_to_star}
+              maxTarget={max_stars_for_level(config.item_level)}
+              onChange={(item_from_star, item_to_star) =>
+                updateConfig({ item_from_star, item_to_star })
+              }
+            />
+            <div className="settings-grid">
+              <ChoiceGroup
+                label="Event"
+                options={EVENT_OPTIONS}
+                value={config.event}
+                onChange={(event) => updateConfig({ event })}
+              />
+              <ChoiceGroup
+                label="MVP discount"
+                subtitle="Applies to 16★ and below"
+                options={DISCOUNT_OPTIONS}
+                value={config.mvp_discount}
+                onChange={(mvp_discount) => updateConfig({ mvp_discount })}
+              />
+              <section className="option-section safeguard-section" aria-label="Safeguard">
+                <div className="section-title">
+                  <h2>Safeguard</h2>
+                  <span className="section-title-separator" aria-hidden="true">
+                    ·
+                  </span>
+                  <span>Click or drag to select</span>
+                </div>
+                <ButtonGroup className="choice-list" label="Safeguard stars" size="sm">
+                  {SAFEGUARD_VALUES.map((star) => {
+                    const checked = config.safeguard.includes(star);
+                    return (
+                      <ToggleButton
+                        key={star}
+                        className="choice-button safeguard-button"
+                        label={`${star} stars`}
+                        size="sm"
+                        isPressed={checked}
+                        onPressedChange={(isPressed) => {
+                          const safeguard = isPressed
+                            ? [...config.safeguard, star]
+                            : config.safeguard.filter((value) => value !== star);
+                          updateConfig({ safeguard });
+                        }}
+                        onClick={(event) => {
+                          if (dragCommitted.current) {
+                            dragCommitted.current = false;
+                            event.preventDefault();
+                          }
+                        }}
+                        onPointerDown={(event) => {
+                          if (event.button === 0) {
+                            dragStart.current = star;
+                            dragEnd.current = null;
+                          }
+                        }}
+                        onPointerEnter={() => {
+                          if (dragStart.current !== null) dragEnd.current = star;
+                        }}
+                        onPointerCancel={() => {
+                          dragStart.current = null;
+                          dragEnd.current = null;
+                        }}
+                      >
+                        {star}
+                      </ToggleButton>
+                    );
+                  })}
+                </ButtonGroup>
+              </section>
+            </div>
+          </section>
+          <RestorationTable
+            config={config}
+            onToggleStar={toggleRestorationStar}
+            onDiscountChange={(restoration_discount) => updateConfig({ restoration_discount })}
+          />
+        </div>
 
         <section className="results-panel" aria-label="Expected results">
           <div className="results-heading">
             <div>
               <p className="eyebrow">Star-by-star estimate</p>
               <h2>Expected results</h2>
+              <p className="results-instruction">Select a row to adjust target.</p>
             </div>
             <p>
               From {config.item_from_star}★ to {max_stars_for_level(config.item_level)}★
@@ -464,11 +613,11 @@ function AppContent() {
                   <th scope="col">Target star</th>
                   <th scope="col">Expected mesos</th>
                   <th scope="col">Success without Boom</th>
-                  <th scope="col">Expected booms</th>
+                  <th scope="col">Expected Spares Required</th>
                 </tr>
               </thead>
               <tbody aria-live="polite">
-                {resultsByTarget.map(({ targetStar, cost, prob_success, booms }) => {
+                {resultsByTarget.map(({ targetStar, cost, prob_success, spares }) => {
                   const isStartingStar = targetStar === config.item_from_star;
                   const isSelectedTarget = targetStar === config.item_to_star;
                   return (
@@ -476,15 +625,27 @@ function AppContent() {
                       key={targetStar}
                       className={isSelectedTarget ? "result-row-target" : undefined}
                       aria-current={isSelectedTarget ? "true" : undefined}
+                      onClick={() => updateConfig({ item_to_star: targetStar })}
                     >
                       <th scope="row">
-                        <span>{targetStar}★</span>
+                        <button
+                          type="button"
+                          className="result-target-toggle"
+                          aria-label={`Set target to ${targetStar} stars`}
+                          aria-pressed={isSelectedTarget}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            updateConfig({ item_to_star: targetStar });
+                          }}
+                        >
+                          {targetStar}★
+                        </button>
                         {isStartingStar && <span className="row-badge">Start</span>}
                         {isSelectedTarget && <span className="row-badge">Target</span>}
                       </th>
                       <td>{displayCost(cost)}</td>
                       <td>{displayRounded(100 * prob_success)}%</td>
-                      <td>{displayRounded(booms)}</td>
+                      <td>{displayRounded(spares)}</td>
                     </tr>
                   );
                 })}
