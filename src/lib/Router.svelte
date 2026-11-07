@@ -3,7 +3,6 @@
   import UrlPattern from "url-pattern";
 
   import type { Config } from "./types";
-  import { MAX_STARS } from "./types";
   import { DEFAULT_CONFIG, make_config } from "./types";
 
   export let config: Config;
@@ -24,25 +23,11 @@
     }
 
     let opts = qs.parse(query);
-    if ("starcatch" in opts && typeof opts["starcatch"] === "string") {
-      let packed: string = opts["starcatch"];
-
-      let starcatch = [];
-      for (let i = 0; i < MAX_STARS; i++) {
-        if (packed.charAt(i) === "1") {
-          starcatch.push(i);
-        }
-      }
-      opts["starcatch"] = starcatch;
-    } else {
-      delete opts["starcatch"];
-    }
-    let ret = { ...opts, ...url_parts };
-    return make_config(ret);
+    return make_config({ ...opts, ...url_parts });
   };
 
   const serialize = (config: Config) => {
-    let { item_level, item_from_star, item_to_star, starcatch, ...rest } = config;
+    let { item_level, item_from_star, item_to_star, ...rest } = config;
 
     // Remove default values.
     for (let [k, v] of Object.entries(rest)) {
@@ -51,14 +36,6 @@
       }
     }
 
-    // Add starcatch as a bitmap.
-    if (starcatch.length > 0) {
-      let bitmap = [];
-      for (let i = 0; i < MAX_STARS; i++) {
-        bitmap.push(starcatch.includes(i) ? 1 : 0);
-      }
-      rest["starcatch"] = bitmap.join("");
-    }
     return `/${item_level}/${item_from_star}/${item_to_star}/?${qs.stringify(rest)}`;
   };
 

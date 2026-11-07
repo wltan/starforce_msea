@@ -7,6 +7,10 @@ an analytical starforce calculator for post-Savior starforce costs.
 
 This fork is tailored to MapleSEA Star Force systems.
 
+### 2026-11-07
+
+- Remove star catch UI - it is now applied automatically
+
 ### 2026-01-31
 
 - Implement Shining Star Force event (30% off + -30% boom ≤21), since only one event selection is allowed

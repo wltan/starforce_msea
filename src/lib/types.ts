@@ -16,10 +16,7 @@ export type Config = {
   safeguard: number[];
   event: Event | null;
   mvp_discount: number;
-  starcatch: number[];
 };
-
-export const DEFAULT_STARCATCH_ALL: number[] = Array.from({ length: 30 }, (_, i) => i);
 
 export const DEFAULT_CONFIG: Config = {
   item_level: 150,
@@ -29,7 +26,6 @@ export const DEFAULT_CONFIG: Config = {
   safeguard: [17],
   event: null,
   mvp_discount: 0,
-  starcatch: DEFAULT_STARCATCH_ALL,
 };
 
 export const make_config = (obj: any): Config => {

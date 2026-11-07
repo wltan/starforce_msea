@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Config } from "./types";
-  import { MAX_STARS, Event } from "./types";
+  import { Event } from "./types";
 
   export let config: Config;
 
@@ -22,43 +22,6 @@
     }
     let [start, end] = a < b ? [a, b] : [b, a];
     return x >= start && x <= end;
-  };
-
-  let starcatch_drag_start_index: number | null = null;
-  let starcatch_drag_end_index: number | null = null;
-  const starcatch_enabling = (star: number) => !config.starcatch.includes(star);
-  const starcatch_drag_start = (star: number) => (e: PointerEvent) => {
-    starcatch_drag_start_index = star;
-    const target = e.target as HTMLElement;
-    target.releasePointerCapture(e.pointerId);
-  };
-  const starcatch_drag_continue = (star: number) => () => {
-    if (starcatch_drag_start_index != null) {
-      starcatch_drag_end_index = star;
-    }
-  };
-  const starcatch_drag_cancel = () => {
-    starcatch_drag_end_index = null;
-  };
-  const starcatch_drag_commit = () => {
-    if (
-      starcatch_drag_start_index != null &&
-      starcatch_drag_end_index != null &&
-      starcatch_drag_start_index !== starcatch_drag_end_index
-    ) {
-      let new_starcatch = [];
-      for (let i = 0; i < MAX_STARS; i++) {
-        if (between(starcatch_drag_start_index, starcatch_drag_end_index, i)) {
-          if (starcatch_enabling(starcatch_drag_start_index)) {
-            new_starcatch.push(i);
-          }
-        } else if (config.starcatch.includes(i)) {
-          new_starcatch.push(i);
-        }
-      }
-      config.starcatch = new_starcatch;
-    }
-    starcatch_drag_start_index = starcatch_drag_end_index = null;
   };
 
   let safeguard_drag_start_index: number | null = null;
@@ -237,32 +200,7 @@
   </div>
 </fieldset>
 
-<fieldset on:pointerleave={starcatch_drag_cancel}>
-  <legend>
-    <span>Starcatch</span>
-    <span class="help">(click and drag)</span>
-  </legend>
-
-  <div class="inputs">
-    {#each { length: MAX_STARS } as _, star}
-      <label
-        class="button draggable"
-        class:checked={config.starcatch.includes(star)}
-        class:disabling={!starcatch_enabling(starcatch_drag_start_index)}
-        class:active={between(starcatch_drag_start_index, starcatch_drag_end_index, star)}
-        on:pointerdown={starcatch_drag_start(star)}
-        on:pointerenter={starcatch_drag_continue(star)}
-      >
-        <input type="checkbox" bind:group={config.starcatch} value={star} />
-        <span>
-          {star}
-        </span>
-      </label>
-    {/each}
-  </div>
-</fieldset>
-
-<svelte:window on:pointerup={starcatch_drag_commit} on:pointerup={safeguard_drag_commit} />
+<svelte:window on:pointerup={safeguard_drag_commit} />
 
 <style lang="postcss">
   @tailwind utilities;

@@ -1,5 +1,5 @@
 import type { Config } from "./types";
-import { MAX_STARS, Event, DEFAULT_STARCATCH_ALL } from "./types";
+import { MAX_STARS, Event } from "./types";
 
 // Per official KMS site.
 const STARCATCH_MULTI = 1.05;
@@ -92,8 +92,7 @@ const cost_and_odds = (config: Config, star: number) => {
   }
 
   const [base_success_chance, boom_chance_given_no_success] = PROBABILITIES[star];
-  const success_chance =
-    base_success_chance * (config.starcatch.includes(star) ? STARCATCH_MULTI : 1);
+  const success_chance = base_success_chance * STARCATCH_MULTI;
 
   let boom_chance = is_safeguard_active ? 0 : (1 - success_chance) * boom_chance_given_no_success;
   switch (config.event) {
