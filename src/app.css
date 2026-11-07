@@ -32,7 +32,7 @@ input {
 }
 
 .app-shell {
-  width: min(100% - 40px, 1000px);
+  width: calc(100% - 48px);
   margin: 0 auto;
   padding: 48px 0 32px;
 }
@@ -41,6 +41,7 @@ input {
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-bottom: 28px;
 }
 
 .brand-mark {
@@ -49,10 +50,10 @@ input {
   height: 52px;
   place-items: center;
   flex: none;
-  border: 1px solid rgb(245 181 64 / 35%);
+  border: 1px solid var(--color-border-yellow);
   border-radius: 16px;
-  color: #a96800;
-  background: rgb(245 181 64 / 14%);
+  color: var(--color-on-warning-muted);
+  background: var(--color-warning-muted);
   font-size: 30px;
 }
 
@@ -65,7 +66,7 @@ input {
   text-transform: uppercase;
 }
 
-.app-header h1,
+.app-header .app-title,
 .panel-heading h2 {
   margin: 0;
   font-size: clamp(1.55rem, 3vw, 2rem);
@@ -73,7 +74,7 @@ input {
   letter-spacing: -0.035em;
 }
 
-.app-header h1 span {
+.app-header .app-title span {
   color: var(--color-text-secondary);
   font-weight: 400;
 }
@@ -89,11 +90,20 @@ input {
   letter-spacing: 0.08em;
 }
 
-.intro {
+.app-subtitle {
   max-width: 620px;
-  margin: 20px 0 28px 68px;
+  margin: 4px 0 0;
   color: var(--color-text-secondary);
   line-height: 1.6;
+}
+
+.app-header-note {
+  max-width: 260px;
+  margin: 0 0 0 auto;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: right;
 }
 
 .calculator-panel {
@@ -102,6 +112,13 @@ input {
   border-radius: 20px;
   background: var(--color-background-surface);
   box-shadow: var(--shadow-low);
+}
+
+.calculator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  align-items: start;
+  gap: 20px;
 }
 
 .panel-heading {
@@ -119,8 +136,8 @@ input {
 .star-range {
   padding: 7px 11px;
   border-radius: 999px;
-  color: #875500;
-  background: rgb(245 181 64 / 16%);
+  color: var(--color-on-warning-muted);
+  background: var(--color-warning-muted);
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
@@ -128,19 +145,89 @@ input {
 
 .star-range span {
   padding: 0 3px;
-  color: #ad791c;
+  color: var(--color-on-warning-muted);
 }
 
 .numeric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid var(--color-border);
+  max-width: 520px;
 }
 
 .numeric-field {
   min-width: 0;
+}
+
+.numeric-grid .astryx-field-label {
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.replacement-cost-field {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  gap: 8px;
+}
+
+.replacement-cost-field > .astryx-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.replacement-cost-units {
+  flex: 0 0 auto;
+  margin-bottom: 2px;
+}
+
+.star-range-section {
+  padding: 22px 0 26px;
+}
+
+.star-range-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 6px;
+}
+
+.star-range-labels > span {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.star-range-labels > span:last-child {
+  text-align: right;
+}
+
+.star-range-labels strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.star-slider-field {
+  margin: 0 16px;
+  padding-top: 6px;
+}
+
+.star-slider-control .astryx-slider-track {
+  opacity: 0;
+}
+
+.star-slider-control::before {
+  position: absolute;
+  top: 50%;
+  left: var(--star-rail-start);
+  width: calc(var(--star-rail-end) - var(--star-rail-start));
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-track);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .settings-grid {
@@ -153,10 +240,8 @@ input {
 .option-section h2 {
   margin: 0 0 12px;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .choice-list {
@@ -171,6 +256,10 @@ input {
 
 .safeguard-section {
   grid-column: 1 / -1;
+}
+
+.safeguard-section .choice-list {
+  gap: 0;
 }
 
 .section-title {
@@ -189,81 +278,126 @@ input {
   font-size: 0.8rem;
 }
 
+.section-title .section-title-separator {
+  margin: 0 -5px;
+}
+
 .safeguard-button {
   min-width: 52px;
   touch-action: none;
 }
 
 .results-panel {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 14px;
-  margin-top: 20px;
-}
-
-.result-card {
   min-width: 0;
-  padding: 20px 22px;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-background-surface);
 }
 
-.result-cost {
-  border-color: rgb(245 181 64 / 42%);
-  background: linear-gradient(145deg, rgb(245 181 64 / 13%), var(--color-background-surface) 75%);
+.results-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
 }
 
-.result-label,
-.result-caption,
-.result-value {
+.results-heading h2 {
   margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 
-.result-label {
+.results-heading > p {
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: 0.85rem;
+}
+
+.results-table-scroll {
+  overflow-x: auto;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-table th,
+.results-table td {
+  padding: 12px 24px;
+  border-top: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.results-table thead th {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.results-table thead th:first-child,
+.results-table tbody th {
+  text-align: left;
+}
+
+.results-table tbody th {
   font-weight: 500;
 }
 
-.result-value {
-  margin-top: 8px;
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
+.results-table tbody tr {
+  transition: background-color 120ms ease-out;
+}
+
+.results-table tbody tr:hover {
+  background: var(--color-background-surface-hover);
+}
+
+.results-table tbody .result-row-target {
+  background: rgb(245 181 64 / 19%);
+  box-shadow: inset 3px 0 #c98713;
+  font-weight: 700;
+}
+
+.row-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--color-on-warning-muted);
+  background: var(--color-warning-muted);
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 1.1;
-  overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
 }
 
-.result-cost .result-value {
-  color: #a96800;
-}
-
-.result-booms .result-value {
-  color: var(--color-text-error);
-}
-
-.result-caption {
-  margin-top: 7px;
-  color: var(--color-text-secondary);
-  font-size: 0.78rem;
-}
-
-.app-footer {
-  padding: 20px 0;
-  color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  text-align: center;
+@media (max-width: 1000px) {
+  .calculator-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
   .app-shell {
-    width: min(100% - 28px, 600px);
+    width: calc(100% - 28px);
     padding-top: 28px;
   }
 
-  .intro {
-    margin-left: 0;
+  .app-header {
+    flex-wrap: wrap;
+  }
+
+  .app-header-note {
+    max-width: 100%;
+    margin-left: 68px;
+    text-align: left;
   }
 
   .numeric-grid {
@@ -279,12 +413,20 @@ input {
     grid-column: auto;
   }
 
-  .results-panel {
-    grid-template-columns: 1fr 1fr;
+  .results-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 16px;
   }
 
-  .result-cost {
-    grid-column: 1 / -1;
+  .results-table th,
+  .results-table td {
+    padding: 11px 16px;
+  }
+
+  .results-table {
+    min-width: 620px;
   }
 }
 
@@ -300,6 +442,10 @@ input {
     font-size: 26px;
   }
 
+  .app-header-note {
+    margin-left: 56px;
+  }
+
   .region-badge {
     padding: 5px 8px;
     font-size: 0.65rem;
@@ -308,13 +454,5 @@ input {
   .panel-heading {
     align-items: start;
     flex-direction: column;
-  }
-
-  .result-card {
-    padding: 16px;
-  }
-
-  .result-value {
-    font-size: 1.8rem;
   }
 }

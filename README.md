@@ -22,7 +22,9 @@ This fork is tailored to MapleSEA Star Force systems.
 
 ### 2026-11-07
 
-- Remove star catch UI - it is now applied automatically
+- Remove star catch - it is now applied automatically
+- Revamp UI to Astryx
+- Revamp input/output components
 
 ### 2026-01-31
 
